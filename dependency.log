@@ -1,0 +1,61 @@
+[INFO] Scanning for projects...
+[INFO] Searching repository for plugin with prefix: 'dependency'.
+[INFO] ------------------------------------------------------------------------
+[INFO] Building Vaadin Web Application
+[INFO]    task-segment: [dependency:tree]
+[INFO] ------------------------------------------------------------------------
+Downloading: http://maven.vaadin.com/vaadin-addons/org/apache/jena/apache-jena-libs/X.Y.Z/apache-jena-libs-X.Y.Z.pom
+[INFO] Unable to find resource 'org.apache.jena:apache-jena-libs:pom:X.Y.Z' in repository vaadin-addons (http://maven.vaadin.com/vaadin-addons)
+Downloading: http://maven.aksw.org/archiva/repository/snapshots//org/apache/jena/apache-jena-libs/X.Y.Z/apache-jena-libs-X.Y.Z.pom
+[INFO] Unable to find resource 'org.apache.jena:apache-jena-libs:pom:X.Y.Z' in repository snapshot.maven.aksw (http://maven.aksw.org/archiva/repository/snapshots/)
+Downloading: http://projectlombok.org/mavenrepo/org/apache/jena/apache-jena-libs/X.Y.Z/apache-jena-libs-X.Y.Z.pom
+[INFO] Unable to find resource 'org.apache.jena:apache-jena-libs:pom:X.Y.Z' in repository projectlombok.org (http://projectlombok.org/mavenrepo)
+Downloading: http://maven.aksw.org/archiva/repository/internal//org/apache/jena/apache-jena-libs/X.Y.Z/apache-jena-libs-X.Y.Z.pom
+[INFO] Unable to find resource 'org.apache.jena:apache-jena-libs:pom:X.Y.Z' in repository maven.aksw (http://maven.aksw.org/archiva/repository/internal/)
+Downloading: http://repo1.maven.org/maven2/org/apache/jena/apache-jena-libs/X.Y.Z/apache-jena-libs-X.Y.Z.pom
+[INFO] Unable to find resource 'org.apache.jena:apache-jena-libs:pom:X.Y.Z' in repository central (http://repo1.maven.org/maven2)
+Downloading: http://maven.vaadin.com/vaadin-addons/org/apache/jena/apache-jena-libs/X.Y.Z/apache-jena-libs-X.Y.Z.pom
+[INFO] Unable to find resource 'org.apache.jena:apache-jena-libs:pom:X.Y.Z' in repository vaadin-addons (http://maven.vaadin.com/vaadin-addons)
+Downloading: http://maven.aksw.org/archiva/repository/snapshots//org/apache/jena/apache-jena-libs/X.Y.Z/apache-jena-libs-X.Y.Z.pom
+[INFO] Unable to find resource 'org.apache.jena:apache-jena-libs:pom:X.Y.Z' in repository snapshot.maven.aksw (http://maven.aksw.org/archiva/repository/snapshots/)
+Downloading: http://projectlombok.org/mavenrepo/org/apache/jena/apache-jena-libs/X.Y.Z/apache-jena-libs-X.Y.Z.pom
+[INFO] Unable to find resource 'org.apache.jena:apache-jena-libs:pom:X.Y.Z' in repository projectlombok.org (http://projectlombok.org/mavenrepo)
+Downloading: http://maven.aksw.org/archiva/repository/internal//org/apache/jena/apache-jena-libs/X.Y.Z/apache-jena-libs-X.Y.Z.pom
+[INFO] Unable to find resource 'org.apache.jena:apache-jena-libs:pom:X.Y.Z' in repository maven.aksw (http://maven.aksw.org/archiva/repository/internal/)
+Downloading: http://repo1.maven.org/maven2/org/apache/jena/apache-jena-libs/X.Y.Z/apache-jena-libs-X.Y.Z.pom
+[INFO] Unable to find resource 'org.apache.jena:apache-jena-libs:pom:X.Y.Z' in repository central (http://repo1.maven.org/maven2)
+[INFO] ------------------------------------------------------------------------
+[ERROR] BUILD ERROR
+[INFO] ------------------------------------------------------------------------
+[INFO] Failed to resolve artifact.
+
+Missing:
+----------
+1) org.apache.jena:apache-jena-libs:pom:X.Y.Z
+  Path to dependency: 
+  	1) org.aksw:evalink:war:1.0
+  	2) org.apache.jena:apache-jena-libs:pom:X.Y.Z
+
+----------
+1 required artifact is missing.
+
+for artifact: 
+  org.aksw:evalink:war:1.0
+
+from the specified remote repositories:
+  central (http://repo1.maven.org/maven2),
+  vaadin-snapshots (http://oss.sonatype.org/content/repositories/vaadin-snapshots/),
+  vaadin-addons (http://maven.vaadin.com/vaadin-addons),
+  projectlombok.org (http://projectlombok.org/mavenrepo),
+  snapshot.maven.aksw (http://maven.aksw.org/archiva/repository/snapshots/),
+  maven.aksw (http://maven.aksw.org/archiva/repository/internal/)
+
+
+
+[INFO] ------------------------------------------------------------------------
+[INFO] For more information, run Maven with the -e switch
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time: 4 seconds
+[INFO] Finished at: Wed May 08 15:54:46 CEST 2013
+[INFO] Final Memory: 12M/29M
+[INFO] ------------------------------------------------------------------------
