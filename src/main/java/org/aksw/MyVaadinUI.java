@@ -1,24 +1,17 @@
 package org.aksw;
 
-import java.io.BufferedWriter;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.sql.Array;
+import java.io.File;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.sql.*;
-
-import javax.swing.plaf.SplitPaneUI;
-
 
 import com.hp.hpl.jena.query.Query;
 import com.hp.hpl.jena.query.QueryExecution;
@@ -28,54 +21,36 @@ import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.ModelFactory;
 import com.hp.hpl.jena.rdf.model.Resource;
 import com.hp.hpl.jena.rdf.model.ResourceFactory;
-import com.hp.hpl.jena.sparql.pfunction.library.container;
-//import com.ibm.icu.impl.USerializedSet;
-import com.vaadin.data.Container;
 import com.vaadin.data.Item;
 import com.vaadin.data.Property;
-import com.vaadin.data.Property.ReadOnlyException;
 import com.vaadin.data.Property.ValueChangeEvent;
 import com.vaadin.data.Property.ValueChangeListener;
-import com.vaadin.data.util.IndexedContainer;
 import com.vaadin.data.util.filter.Compare;
-import com.vaadin.data.util.sqlcontainer.RowItem;
 import com.vaadin.data.util.sqlcontainer.SQLContainer;
-//import com.mysql.jdbc.Connection;
-import com.vaadin.data.util.sqlcontainer.connection.JDBCConnectionPool;
 import com.vaadin.data.util.sqlcontainer.connection.SimpleJDBCConnectionPool;
 import com.vaadin.data.util.sqlcontainer.query.FreeformQuery;
 import com.vaadin.data.util.sqlcontainer.query.TableQuery;
 import com.vaadin.event.FieldEvents.FocusListener;
 import com.vaadin.event.ItemClickEvent;
 import com.vaadin.event.FieldEvents.FocusEvent;
-import com.vaadin.event.ItemClickEvent.ItemClickListener;
-import com.vaadin.server.ExternalResource;
 import com.vaadin.server.VaadinRequest;
-import com.vaadin.shared.ui.label.ContentMode;
 import com.vaadin.ui.AbsoluteLayout;
 import com.vaadin.ui.Button;
 import com.vaadin.ui.Button.ClickEvent;
+import com.vaadin.ui.Alignment;
 import com.vaadin.ui.CheckBox;
 import com.vaadin.ui.ComboBox;
-import com.vaadin.ui.Component;
+import com.vaadin.ui.GridLayout;
+import com.vaadin.ui.HorizontalLayout;
 import com.vaadin.ui.Label;
-import com.vaadin.ui.Link;
 import com.vaadin.ui.ListSelect;
-import com.vaadin.ui.LoginForm;
-import com.vaadin.ui.NativeSelect;
 import com.vaadin.ui.Notification;
 import com.vaadin.ui.Notification.Type;
 import com.vaadin.ui.Panel;
+import com.vaadin.ui.TabSheet;
 import com.vaadin.ui.Table;
-import com.vaadin.ui.TextField;
 import com.vaadin.ui.UI;
-import com.vaadin.ui.VerticalSplitPanel;
-import com.vaadin.ui.Window;
-import com.vaadin.data.util.filter.SimpleStringFilter;
-/*import de.steinwedel.messagebox.ButtonId;
-import de.steinwedel.messagebox.Icon;
-import de.steinwedel.messagebox.MessageBox;
-*/
+import com.vaadin.ui.VerticalLayout;
 /**
  * The Application's "main" class
  */
@@ -84,53 +59,70 @@ public class MyVaadinUI extends UI
 {
 	
 	// Data structures declarations
-	List<LinkCandidate> infoList;
-	String userId="",userName="",task="";
+	static Model model1 = ModelFactory.createDefaultModel(),model2=null,model4=null;
+	//A data structure to contain the models holding the cahed data for each task
+	static Map<Integer, Model> cachingModels = new HashMap<Integer, Model>();
+
+	String userId="",userName="",task=""; //three variable to represent the user id, his name, and the task to work on
+	//A data structure to cache endpoints
 	HashMap<String, String> endpoints;
-	Panel displayedPanel;
+	// list holding file paths of cached data along with their task Ids
+	Map<Integer, String> cahinfFiles;
+	//Three panels to display for each tab 
+	//{pnlLoginPanel: the login data, pnlEndpoints: show the tow endpoints ,pnlLinksDetails: show the details of each tak's links,pnlDisplayedPanel:main panel holding the others}
+	Panel pnlDisplayedPanel,pnlLoginPanel,pnlLinksDetails,pnlEndpoints;
+	//The main tab holding the other three subtabs to hold the three panels 
+	TabSheet  tabMain=null;
+	//tow comboboxes holding the endpoints lists
+	ComboBox cmbSourceEndpoint, cmbDestinationEndpoint;
+	ComboBox cmbUser, cmbTask;
+
+	//list of suggested properties to check while investigating the links
+	ListSelect lstSuggestedProperties ;
+	
+
     @Override
     protected void init(VaadinRequest request) 
     {
-    	
-    	displayedPanel=designLoginPanel();
-       	setContent(displayedPanel);
+    	//Create a panel for login data
+    	pnlLoginPanel =new Panel("Login");
+    	//Create a panel for endpoints
+       	pnlEndpoints= new Panel();
+    	pnlDisplayedPanel=designLoginPanel();
+       	setContent(pnlDisplayedPanel); 
     }
     ///////////////////////////////////////////////////////////////////////////////////////////////////////
     private Panel designLoginPanel()
     {
-    	
-    	final Panel loginPanel =new Panel("Login");
+    	//for login data and collecting users data
     	HashMap<String, String> users=null;
    
-    	loginPanel.setWidth("100%");
-    	loginPanel.setHeight("100%");
+    	pnlLoginPanel.setWidth("100%");
+    	pnlLoginPanel.setHeight("100%");
       	// Create absolute layout specifying its properties
     	final AbsoluteLayout loginLayout= new AbsoluteLayout();
     	loginLayout.setSizeFull();
     	// Create components Objects and specify their properties
-    	int startLeft=200,startTop=300;
-    	try {
-			users=getLoginInfo("jdbc:mysql://localhost:3306/","linkeval","root","mofo");
-			endpoints=getEndpoints("jdbc:mysql://localhost:3306/", "linkeval","root","mofo");
+    	try 
+    	{
+			users=getLoginInfo("jdbc:mysql://localhost:3306/","linkeval","root","aksw");
+			endpoints=getEndpoints("jdbc:mysql://localhost:3306/", "linkeval","root","aksw");
 		} catch (SQLException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+    	//Design the login panel components
        	Button btnLogin = new Button("Login"); 
-       	final ComboBox cmbUser = new ComboBox("Select your USER ID");
-        final ComboBox cmbTask = new ComboBox("Select your TASK");
+       	cmbUser = new ComboBox("Select your USER ID");
+        cmbTask = new ComboBox("Select your TASK");
         cmbUser.setNullSelectionAllowed(false);
         cmbTask.setNullSelectionAllowed(false);
         //Add data
-        Iterator it = users.entrySet().iterator();
-        while (it.hasNext()) 
+        for (Map.Entry<String, String> entry : users.entrySet())
         {
-            Map.Entry pairs = (Map.Entry) it.next();
-            cmbUser.addItem(pairs.getKey()); 
-            cmbUser.setItemCaption(pairs.getKey(),pairs.getValue().toString());
-            it.remove(); // avoids a ConcurrentModificationException
+        	cmbUser.addItem(entry.getKey());
+        	cmbUser.setItemCaption(entry.getKey(),entry.getValue());
         }
-
         cmbUser.setValue(cmbUser.getItemIds().iterator().next());
         
         //Listeners
@@ -139,17 +131,36 @@ public class MyVaadinUI extends UI
         {
             public void buttonClick(ClickEvent event) 
             {
-            	userId = String.valueOf(cmbUser.getValue()); //which is his Id in tabel as this combo box shows names as captions and Ids as values
-            	userName=cmbUser.getItemCaption(userId);
-                task = String.valueOf(cmbTask.getValue());
-                if(task != "" && userId != "" )
-                {
-	            	VerticalSplitPanel vsplit = new VerticalSplitPanel();
-	            	displayedPanel=designMainPanel();
-	            	vsplit.setSecondComponent(displayedPanel);
-	            	vsplit.setFirstComponent(allLinksDetails());
-	            	UI.getCurrent().setContent(vsplit);
-                }
+            	try
+            	{
+	            	userId = String.valueOf(cmbUser.getValue()); //which is his Id in tabel as this combo box shows names as captions and Ids as values
+	            	userName=cmbUser.getItemCaption(userId);
+	                task = String.valueOf(cmbTask.getValue());
+	                if(task != "" && userId != "" )
+	                {
+	                	//Caching  the required data information 
+	                	cachingForTriples();
+	                	pnlEndpointsPanelDesign();
+		            	pnlDisplayedPanel=pnlMainPanelDesign();
+		            	pnlLinksDetails = allLinksDetails();
+	
+		            	tabMain = new TabSheet();
+		            	tabMain.setSizeFull();
+		            	VerticalLayout layout= new VerticalLayout();
+		            	layout.addComponent(tabMain);
+	
+		            	tabMain.addTab(pnlEndpoints,"Task Endpoints");
+		            	// Create the first tab
+		            	tabMain.addTab(pnlLinksDetails, "Links Details"); 
+		            	
+		            	// Create the second tab
+		            	// This tab gets its caption from the component caption
+		            	tabMain.addTab(pnlDisplayedPanel,"Evaluating");
+		            	
+		            	setContent(tabMain);
+	                }
+            	}
+            	catch(Exception e) {Notification.show(e.getMessage());}
             }
         });
         cmbUser.addFocusListener(new FocusListener() {
@@ -164,11 +175,11 @@ public class MyVaadinUI extends UI
             @Override
             public void valueChange(final ValueChangeEvent event) 
             {
-                final String valueString = String.valueOf(event.getProperty().getValue());
+                final String user = String.valueOf(event.getProperty().getValue());
                 
                 try {
-     				List<String>  tasks= getTasksInfo("jdbc:mysql://localhost:3306/","linkeval","root","mofo",valueString);
-     				
+     				List<String>  tasks= getTasksInfo("jdbc:mysql://localhost:3306/","linkeval","root","aksw",user);
+     				//clear the tasks combobox from any previous selections
      				cmbTask.removeAllItems();
      				if(tasks != null)
      				{
@@ -180,7 +191,7 @@ public class MyVaadinUI extends UI
      				}	
      			} catch (SQLException e) {
      				// TODO Auto-generated catch block
-     				Notification.show(e.getMessage()) ;
+     				Notification.show("Error in accessing User's tasks\n"+e.getMessage()) ;
      			}
             }
         });
@@ -189,13 +200,13 @@ public class MyVaadinUI extends UI
         loginLayout.addComponent(cmbTask, "left: 800px; top: 300px;");
         loginLayout.addComponent(btnLogin, "left: 900px; top: 400px;");
 
-        loginPanel.setContent(loginLayout);
+        pnlLoginPanel.setContent(loginLayout);
     	
-       	return loginPanel;
+       	return pnlLoginPanel;
     }
  ///////////////////////////////////////////////////////////////////////////////////////////   
    
-    Label source,destination;
+    Label lblSource,lblDestination;
     Table tblSourceDestinationparam,tblSourcePropertiesParam,tblDestinationPropertiesParam; //pass tables between different panels
     long lStartTime =0;
 	long lEndTime=0; 
@@ -203,16 +214,14 @@ public class MyVaadinUI extends UI
 	Table tblSourceDestination = new Table("Source and Destination URIs");
     private Panel allLinksDetails()
     {
-    	//positioning indices
-    	//final int leftStart=10,topStart=10, space=100;
+
     	//create the panel that will hold all components
     	Panel linksDetails = new Panel("Links Details");
     	//set panel's properties   	
-    	linksDetails.setWidth("100%");
-    	linksDetails.setHeight("100%");
+    	linksDetails.setSizeFull();
     	
       	// Create absolute layout specifying its properties
-    	final AbsoluteLayout layout = new AbsoluteLayout();
+    	final GridLayout layout = new GridLayout(1,2);
     	//set layout's properties
     	layout.setSizeFull();
      	
@@ -220,21 +229,23 @@ public class MyVaadinUI extends UI
        	Button btnLoad = new Button("Load task");
     	//final Table tblSourceDestination = new Table("Source and Destination URIs");
      	tblSourceDestination.setSelectable(true);     	
-    	tblSourceDestination.setWidth("90%");    	
+     	tblSourceDestination.setSizeFull();    	
     	//fill the Source and Destination URIs table
-    	SQLContainer container=connectToDB("root", "mofo",userName);
+    	SQLContainer container=connectToDB("root", "aksw",userName);
     	Notification.show("Welcome "+userName+" you loaded task Nr.: "+task);
     	Compare.Equal suburbFilter = new Compare.Equal("taskId",Integer.valueOf(task));
     	container.addContainerFilter(suburbFilter);
     	//Fill the main (tblSourceDestination) table with resources
     	tblSourceDestination.setContainerDataSource(container);
+    	
     	tblSourceDestinationparam=tblSourceDestination;
     	
     	// add component to the layout specifying its position on the layout
     	int tableWidth = (int) tblSourceDestination.getWidth();
-    	layout.addComponent(btnLoad, "left:1500px; top: 10px;");
-    	layout.addComponent(tblSourceDestination,"left: 10px; top: 20px;");
-    	
+    	layout.addComponent(btnLoad,0,1);
+    	layout.addComponent(tblSourceDestination,0,0);
+    	layout.setComponentAlignment(btnLoad, Alignment.TOP_LEFT);
+    	layout.setSpacing(false);
     	linksDetails.setContent(layout);
     	// Add EventHandlers for some of the components
     	
@@ -243,27 +254,25 @@ public class MyVaadinUI extends UI
         {
             public void buttonClick(ClickEvent event) 
             {
-           		//lStartTime= System.currentTimeMillis();
-        
+     
             	try
             	{
 	            	Object rowId =tblSourceDestination.getValue();
 	                Property sourceProperty=tblSourceDestination.getContainerProperty(rowId,"sourceURI");
 	                Property destinationProperty=tblSourceDestination.getContainerProperty(rowId,"destinationURI");
 	                
-	                source.setValue(sourceProperty.toString());
-	                destination.setValue(destinationProperty.toString());
+	                lblSource.setValue(sourceProperty.toString());
+	                lblDestination.setValue(destinationProperty.toString());
 	                tblSourcePropertiesParam.removeAllItems();
 	                tblDestinationPropertiesParam.removeAllItems();
 	                
+	                tabMain.setSelectedTab(2);
 	                
-	                Notification loadURI= new Notification("");
-	                loadURI.show("Links' URIs are successfully loaded ");
+	                Notification.show("Links' URIs are successfully loaded ");
             	}
             	catch(Exception e)
             	{
-            		Notification error= new Notification("Error");
-            		error.show("You did not select an item in the links table");
+            		Notification.show("You did not select an item in the links table");
             	}
 
             }
@@ -273,28 +282,7 @@ public class MyVaadinUI extends UI
 
             public void itemClick(ItemClickEvent event) 
             {
-            	/*lStartTime= System.currentTimeMillis();
-                
-            	try
-            	{
-	            	Object rowId =tblSourceDestination.getValue();
-	                Property sourceProperty=tblSourceDestination.getContainerProperty(rowId,"sourceURI");
-	                Property destinationProperty=tblSourceDestination.getContainerProperty(rowId,"destinationURI");
-	                
-	                source.setValue(sourceProperty.toString());
-	                destination.setValue(destinationProperty.toString());
-	                tblSourcePropertiesParam.removeAllItems();
-	                tblDestinationPropertiesParam.removeAllItems();
-	                
-	                
-	                Notification loadURI= new Notification("");
-	                loadURI.show("Links' URIs are successfully loaded ");
-            	}
-            	catch(Exception e)
-            	{
-            		Notification error= new Notification("Error");
-            		error.show("You did not select an item in the links table");
-            	}*/
+
             }
         });
     	
@@ -302,69 +290,75 @@ public class MyVaadinUI extends UI
      	return linksDetails;
     }
     /////////////////////////////////////////////////////////////////////////////////////////////
-    private boolean checkIfCached(int taskid)
+    private void cachingForTriples()
     {
-    	return true;
-    }
-    private void cachingForTriples(Table table, String endpoint)
-    {
-    	Model model = ModelFactory.createDefaultModel();
-    	List<String> resources=null;
-    	FileWriter fstream=null;
-		try {
-			fstream = new FileWriter("/home/mofeed/TrialStart/zicozico.nt");
-		} catch (IOException e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
-		}
-		BufferedWriter out = new BufferedWriter(fstream);
-    	try
-    	{
-	    	for (Object id : table.getItemIds()) 
-	    	{
-	    		Item item = table.getItem(id);
-	    		Property sourceURI = item.getItemProperty("sourceURI");
-	    		Resource resource = model.createResource();
-	    		try
-	        	{
-	            	String sparqlQuery="select distinct * where { <"+sourceURI.getValue()+"> ?p  ?o .}";
-	    	        Query query = QueryFactory.create(sparqlQuery);
-	    			QueryExecution qexec = QueryExecutionFactory.sparqlService(endpoint, query);
-	    			com.hp.hpl.jena.query.ResultSet results = qexec.execSelect();
-	    			com.hp.hpl.jena.query.QuerySolution binding=null;
-	    		    while (results.hasNext()) 
-	    		    {
-	    		    	binding = results.next();
-	    		    	String property=binding.getResource("?p").toString();
-	    		    	String value;
-	    		    	if(binding.get("?o").isResource())
-	    		    		value=binding.getResource("?o").toString();
-	    		    	else
-	    		    		value=binding.getLiteral("?o").toString();
-	    		    	com.hp.hpl.jena.rdf.model.Property pt = ResourceFactory.createProperty(property);
-	    		    	//resource.addProperty(pt, value);
-	    		    	model.add(resource, pt, value);
-	    		    }
-	    		    qexec.close() ;
-	    		    model.write(out, null, "TURTLE");
-	        	}
-	        	catch (Exception e)
-	    	 	  {
-	    		        Notification.show(e.toString());
-	    	 	  }
-	    		//model.add(s, p, o);
-	    		//Property destinationURI = item.getItemProperty("destinationURI");
-   			   // out.write(sourceURI.getValue()+"\n");
-			}
-	    	/*out.flush();
-	    	fstream.flush();*/
-	    	out.close();
-    	}catch (Exception e){//Catch exception if any
-			  System.err.println("Error: " + e.getMessage());
-			  }
+    	//get caching files location from DB
+    	String queryCach="SELECT taskId,caching FROM Tasks";
+    	SQLContainer cachedFile =connectToDB("root", "aksw","linkeval",queryCach);
+    	hashingCaching(cachedFile);
+    	Model cachedModel=null;
+    	int t = Integer.parseInt(task);
+    	if((cahinfFiles.keySet().contains(t)))// the file exists
+    	{		
+
+    		try
+    		{
+	    		cachedModel=org.aksw.Reader.readModel( cahinfFiles.get(Integer.parseInt(task)) );
+	    		cachingModels.put(Integer.parseInt(task), cachedModel);
+    		}
+    		catch(Exception e)
+    		{
+    			Notification.show("Caching File not exist");
+    		}
+    	}
+
+
+    	/*//get cahing files location from DB
+    	String queryCach="SELECT taskId,caching FROM Tasks";
+    	SQLContainer cachedFile =connectToDB("root", "aksw","linkeval",queryCach);
+    	hashingCaching(cachedFile);
+    	if(task.equals("1") && model1 == null)
+    		model1= org.aksw.Reader.readModel( cahinfFiles.get(Integer.parseInt(task)) );
+    	else if(task.equals("2") && model2 == null)
+    		model2= org.aksw.Reader.readModel( cahinfFiles.get(Integer.parseInt(task)) );
+    	else if(task.equals("4") && model4 == null)
+    		model4= org.aksw.Reader.readModel( cahinfFiles.get(Integer.parseInt(task)) );*/
     }
     
     /////////////////////////////////////////////////////////////////////////////////////////////
+    private SQLContainer connectToDB (String userName, String passWord, String DB, String query)
+    {
+    	SimpleJDBCConnectionPool connectionPool;  
+    	SQLContainer container=null;
+        try
+        {
+        	connectionPool = new SimpleJDBCConnectionPool("com.mysql.jdbc.Driver", "jdbc:mysql://localhost:3306/"+DB,userName, passWord, 2,7);
+        	FreeformQuery ask = new FreeformQuery(query, connectionPool);
+        	container = new SQLContainer(ask);
+        }
+        catch(Exception e)
+        {
+        	Notification.show(e.getMessage());
+        }
+        return container;
+    }
+    
+    private void hashingCaching(SQLContainer cahingContainer)
+    {
+    	cahinfFiles= new HashMap<Integer, String>();
+    	for (int i = 0; i < cahingContainer.size(); i++) 
+    	{
+    	    Object id = cahingContainer.getIdByIndex(i);
+    	    Item item = cahingContainer.getItem(id);
+    	    // do stuff with item
+    	    Integer taskId=  (Integer)  item.getItemProperty("taskId").getValue();
+    	    String caching =item.getItemProperty("caching").getValue().toString();
+    	    File f = new File(caching);
+    	    if(f.exists()) {  cahinfFiles.put(taskId, caching);}//add only the files you are sure they are exist in the specified path
+    	    
+    	}
+    	
+    }
     private SQLContainer connectToDB(String userName, String passWord, String table)
     {
     	SimpleJDBCConnectionPool connectionPool;  
@@ -383,22 +377,7 @@ public class MyVaadinUI extends UI
     }
     
        
-    private SQLContainer connectToDB(String userName, String passWord)
-    {//has problems
-    	SimpleJDBCConnectionPool connectionPool;  
-    	SQLContainer container=null;
-        try
-        {
-        	connectionPool = new SimpleJDBCConnectionPool("com.mysql.jdbc.Driver", "jdbc:mysql://localhost:3306/linkeval",userName, passWord, 2,7);
-        	FreeformQuery query = new FreeformQuery("SELECT endpoint FROM Endpoints", connectionPool);
-        	container = new SQLContainer(query);
-        }
-        catch(Exception e)
-        {
-        	Notification.show(e.getMessage());
-        }
-        return container;
-    }
+    
     private SQLContainer connectToDBFreeQuery(String userName, String passWord)
     {//has problems
     	SimpleJDBCConnectionPool connectionPool;  
@@ -413,20 +392,16 @@ public class MyVaadinUI extends UI
         }
         catch(Exception e)
         {
-        	Notification.show(e.getMessage());
+        	Notification.show("Database problem in accessing important properties of current task"+e.getMessage());
         }
         return container;
     }
-    
-    
-    
-    
+ 
     //////////////////////////////////////////////////////////////////////////////////////////
 
-    private Panel designMainPanel()
+    private Panel pnlMainPanelDesign()
     {
-    	//positioning indices
-    	final int leftStart=450,topStart=10, space=100;
+  
     	//create the panel that will hold all components
     	
     	Panel pnlURIsProperties = new Panel("URI Display");
@@ -435,10 +410,15 @@ public class MyVaadinUI extends UI
     	pnlURIsProperties.setHeight("100%");
     	
       	// Create absolute layout specifying its properties
-    	final AbsoluteLayout layout = new AbsoluteLayout();
-       	layout.setWidth("100%");
-    	layout.setHeight("100%");
-    	layout.setSizeFull();
+    	final GridLayout layout = new GridLayout(1,3);//main layout in the page 3 rows, 1 col
+    	GridLayout lytProperties= new GridLayout(2, 1);//split the its docked row into 2 columns (each for a properties table) , 1 row 
+    	GridLayout lytDecision_Others= new GridLayout(3,1);//split other details to be 1 row, 3 col left for source label, middle for properties and buttons,right for destination label
+    	GridLayout lytButtons_List= new GridLayout(1,2);
+    	
+    	
+    	HorizontalLayout lytButtonsSub= new HorizontalLayout();
+    	lytProperties.setSizeFull();
+     	layout.setSizeFull();
      	
     	// Create components Objects and specify their properties
        	
@@ -447,76 +427,45 @@ public class MyVaadinUI extends UI
     	Button btnUnsure = new Button("Unsure");
     	Button btnGetProperties= new Button("Get properties");
     	
-    	final ComboBox cmbSourceEndpoint= new ComboBox("Source Endpoint");
-    	final ComboBox cmbDestinationEndpoint= new ComboBox("Destination Endpoint");
-    	final ListSelect lstSuggestedProperties = new ListSelect("Lookup Properties");
-    	final ComboBox x= new ComboBox("Source Endpoint");
-    	cmbSourceEndpoint.setNullSelectionAllowed(false);
-    	cmbSourceEndpoint.setTextInputAllowed(false);
-    	cmbDestinationEndpoint.setNullSelectionAllowed(false);
-    	cmbDestinationEndpoint.setTextInputAllowed(false);
-    	x.addItem("a");
-    	x.addItem("b");
-    	x.addItem("c");
-    	x.setValue("b");
-   
+    	  
     	// to load properties of loaded resources automatically
     	final CheckBox chkAutomaticPropertiesLoad = new CheckBox("Automatic Properties loading (next time)");
     	chkAutomaticPropertiesLoad.setValue(false);// Unchecked by default
     	
-    	cmbSourceEndpoint.setNullSelectionAllowed(false);
-    	cmbDestinationEndpoint.setNullSelectionAllowed(false);
     	
-    	lstSuggestedProperties.setRows(4);
-    	lstSuggestedProperties.setNullSelectionAllowed(false);
 
-    	source= new Label("Source URI");
-    	destination= new Label("Destination URI");
+    	lblSource= new Label("Source URI");
+    	lblDestination= new Label("Destination URI");
     	
     	final Table tblSourcePropertiesMapping = new Table("Source Properties");
     	final Table tblDestinationPropertiesMapping = new Table("Destination Properties");
     	tblSourcePropertiesParam=tblSourcePropertiesMapping;
     	tblDestinationPropertiesParam=tblDestinationPropertiesMapping;
     	
-    	tblSourcePropertiesMapping.setWidth("50%");    	
-    	tblDestinationPropertiesMapping.setWidth("100%");  
+    	tblSourcePropertiesMapping.setSizeFull();    	
+    	tblDestinationPropertiesMapping.setSizeFull();  
     	tblSourcePropertiesMapping.setSelectable(true);
     	tblDestinationPropertiesMapping.setSelectable(true);
-    	/* Define the names and data types of columns.
-    	 * The "default value" parameter is meaningless here. */
+
     	tblSourcePropertiesMapping.addContainerProperty("Property", String.class,  null);
     	tblSourcePropertiesMapping.addContainerProperty("Value",  String.class,  null);
 
     	tblDestinationPropertiesMapping.addContainerProperty("Property",  String.class,  null);
     	tblDestinationPropertiesMapping.addContainerProperty("Value",  String.class,  null);
     	tblDestinationPropertiesMapping.setMultiSelect(true);
-    	///get data for comboboxes
-    	SQLContainer cmbContainer= connectToDB("root", "mofo","Endpoints");
-    	//fill endpoints
-		cmbSourceEndpoint.setContainerDataSource(cmbContainer);
-       	cmbDestinationEndpoint.setContainerDataSource(cmbContainer);  
-    	//select tasks endpoint to be default
-       	//getTaskEndpoint
-    	cmbSourceEndpoint.setValue(cmbSourceEndpoint.getItemIds().iterator().next());
-    	cmbDestinationEndpoint.setValue(cmbDestinationEndpoint.getItemIds().iterator().next());
+    	
+       	lstSuggestedProperties = new ListSelect("Lookup Properties");
+    	lstSuggestedProperties.setRows(4);
+    	lstSuggestedProperties.setNullSelectionAllowed(false);
+    	lstSuggestedProperties.setSizeFull();
+
     	//set the tasks' endpoints to be selected
-    	List<String> endpointsIDs=getTaskEndpointsIDs("jdbc:mysql://localhost:3306/", "linkeval","root","mofo");
+    	List<String> endpointsIDs=getTaskEndpointsIDs("jdbc:mysql://localhost:3306/", "linkeval","root","aksw");
     	HashMap<String, Object> endpointsComponents = collectComponents("SourceEP",cmbSourceEndpoint,"DestinationEP",cmbDestinationEndpoint);
         setTaskEndpoints(endpointsIDs, endpointsComponents);
 		
-		
-/*		Collection IDs2=  cmbDestinationEndpoint.getItemIds();
-		for (Object id : IDs2) 
-		{
-			if(cmbDestinationEndpoint.getItemCaption(id).trim().equals(endpoints.get(1).toString().trim()))
-			{
-				cmbDestinationEndpoint.setValue(id);
-				Notification.show("Got itttttt "+cmbDestinationEndpoint.getItemCaption(id));
-				break;
-			}
-		}*/
 
-    	SQLContainer lstContainer =connectToDBFreeQuery("root", "mofo");
+    	SQLContainer lstContainer =connectToDBFreeQuery("root", "aksw");
     	int lstSize=lstContainer.size();
     	int i=0;
         for (Object cityItemId : lstContainer.getItemIds()) 
@@ -554,7 +503,7 @@ public class MyVaadinUI extends UI
             	if(components != null)
             		decisionButtonAction("Incorrect",components);
             	else
-            		Notification.show("Button Incorrect is Out of Action");
+            		Notification.show("Button Incorrect is Out of Action"); 
             }
         });
     	btnUnsure.addClickListener(new Button.ClickListener() 
@@ -572,10 +521,13 @@ public class MyVaadinUI extends UI
             		Notification.show("Button Unsure is Out of Action");
             }
         });
+    	/////////////////////////////////////////////////Get Properties of the loaded URI////////////////////////////////////
     	btnGetProperties.addClickListener(new Button.ClickListener() 
         {
             public void buttonClick(ClickEvent event) 
             {
+            	try
+            	{
             	HashMap<String, Object> components =null;
             	components=collectComponents("chkProperties",chkAutomaticPropertiesLoad,"cmbSourceEP",cmbSourceEndpoint,"cmbDestinationEP",cmbDestinationEndpoint,
             			"tblSourceProp",tblSourcePropertiesMapping,"tblDestinationProp",tblDestinationPropertiesMapping);
@@ -584,6 +536,8 @@ public class MyVaadinUI extends UI
             		loadURIsProperties(components);
             	else
             		Notification.show("Problem in getting Properties");
+            	}
+            	catch(Exception e) {Notification.show("No selected URIs");}
           }
         });
     	
@@ -600,7 +554,6 @@ public class MyVaadinUI extends UI
                 	first=i.next();
 			        int iid = (Integer) first;
 			        String other=tblSourcePropertiesMapping.getItem(iid).getItemProperty("Property").toString();
-	                //Notification.show(other);
 			        if(other.equals(valueString))   //if(other.equals(property))
 			        {
 			        	Ids.add(iid);
@@ -660,30 +613,125 @@ public class MyVaadinUI extends UI
 				}
             }
         });
+    	
+    
+    	
+    	tblDestinationPropertiesMapping.addItemClickListener(new ItemClickEvent.ItemClickListener() {
+
+            public void itemClick(ItemClickEvent event) 
+            {
+            	String property=tblDestinationPropertiesMapping.getContainerProperty(event.getItemId(), event.getPropertyId()).toString();
+                List<String> res= getRelatedProperties(property);
+                
+                if(res==null)
+                {
+                	Notification.show("No related Properties");
+                	return;
+                }
+                boolean Found=false;
+                List<Object> Ids= new ArrayList<Object>();
+                Object first=null;
+                int x=0;
+				for (String relatedProperty : res) 
+				{
+				    for (Iterator i = tblSourcePropertiesMapping.getItemIds().iterator(); i.hasNext();) 
+				    {
+				        // Get the current item identifier, which is an integer.
+				    	Object theId=i.next();
+				        int iid = (Integer) theId;
+				        String other=tblSourcePropertiesMapping.getItem(iid).getItemProperty(event.getPropertyId()).toString(); 
+				    	
+				        if(other.equals(relatedProperty))   //if(other.equals(property))
+				        {
+				        	Ids.add(iid);
+				        	if(x==0)
+				        	{
+				        		first=theId;
+				        		x=1;
+				        	}
+				        	Found=true;				        	
+				        }
+				    }
+				}
+				if(!Found)
+					Notification.show("Related property is not Found in destination table try manual search");
+				else
+				{
+					Notification.show("Found in source table");
+					tblSourcePropertiesMapping.setValue(Ids);  
+					tblSourcePropertiesMapping.setCurrentPageFirstItemId(first);   
+				}
+            }
+        });
     	// add component to the layout specifying its position on the layout
     	
-    	layout.addComponent(btnCorrect, "left: "+leftStart+"px; top: "+(topStart+450)+"px;");
-    	layout.addComponent(btnIncorrect, "left: "+(leftStart+space)+"px; top: "+(topStart+450)+"px;");
-    	layout.addComponent(btnUnsure, "left: "+(leftStart+2*space)+"px; top: "+(topStart+450)+"px;"); 
-    	layout.addComponent(btnGetProperties, "left: "+(leftStart+3*space+50)+"px; top: "+(topStart+450)+"px;");
-    	layout.addComponent(chkAutomaticPropertiesLoad, "left: "+(leftStart+3*space+250)+"px; top: "+(topStart+450)+"px;");
     	
-    	layout.addComponent(source,"left: 30px; top: "+(topStart+space/2)+"px;");
-    	layout.addComponent(destination,"left: "+(leftStart+3*space+200)+"px; top: "+(topStart+space/2)+"px;");
+    	lytProperties.addComponent(tblSourcePropertiesMapping,0,0);
+    	lytProperties.addComponent(tblDestinationPropertiesMapping,1,0);
+    	lytProperties.setSizeFull(); 
     	
-    	layout.addComponent(cmbSourceEndpoint,"left: 50px; top: "+(topStart+20)+"px;");
-    	layout.addComponent(cmbDestinationEndpoint,"left: "+(leftStart+3*space+200)+"px; top: "+(topStart+20)+"px;");
-    	layout.addComponent(lstSuggestedProperties,"left: "+(leftStart+100)+"px; top: "+(topStart+20)+"px;");
+    	lytButtonsSub.addComponent(btnCorrect);
+    	lytButtonsSub.addComponent(btnIncorrect);
+    	lytButtonsSub.addComponent(btnUnsure);
+    	lytButtonsSub.addComponent(btnGetProperties);
     	
+    	lytButtons_List.addComponent(lstSuggestedProperties, 0, 0); 
+    	lytButtons_List.addComponent(lytButtonsSub, 0, 1);
     	
-    	layout.addComponent(tblSourcePropertiesMapping,"left: 10px; top: "+(topStart+space)+"px;");
-    	layout.addComponent(tblDestinationPropertiesMapping,"left: "+(leftStart+3*space+200)+"px; top: "+(topStart+space)+"px;");
-   	
-    	//layout.addComponent(x, "left: "+(leftStart+3*space+200)+"px; top: "+(topStart+550)+"px;");
+    	lytButtons_List.setSizeFull();
+    	lytButtons_List.setComponentAlignment(lstSuggestedProperties, Alignment.TOP_CENTER);
+    	lytButtons_List.setComponentAlignment(lytButtonsSub, Alignment.MIDDLE_CENTER);
 
+    	
+    	
+    	lytDecision_Others.addComponent(lytButtons_List,1,0);
+    	lytDecision_Others.addComponent(lblSource,0,0);
+    	lytDecision_Others.addComponent(lblDestination,2,0);
+    	lytDecision_Others.setComponentAlignment(lblSource, Alignment.TOP_LEFT);
+    	lytDecision_Others.setComponentAlignment(lblDestination, Alignment.TOP_RIGHT);
+    	lytDecision_Others.setSizeFull();
+    	
+    	layout.addComponent(lytProperties,0,0,0,1);
+    	layout.addComponent(lytDecision_Others, 0, 2);
+
+
+    	
     	pnlURIsProperties.setContent(layout);
     	
     	return pnlURIsProperties;
+    }
+	
+    private void pnlEndpointsPanelDesign()
+    {
+    	VerticalLayout lytEndpoints = new VerticalLayout();
+    	cmbSourceEndpoint= new ComboBox("Source Endpoint");
+    	cmbDestinationEndpoint= new ComboBox("Destination Endpoint");
+    	cmbSourceEndpoint.setNullSelectionAllowed(false);
+    	cmbSourceEndpoint.setTextInputAllowed(false);
+    	cmbDestinationEndpoint.setNullSelectionAllowed(false);
+    	cmbDestinationEndpoint.setTextInputAllowed(false);
+    	cmbSourceEndpoint.setNullSelectionAllowed(false);
+    	cmbDestinationEndpoint.setNullSelectionAllowed(false);
+ 
+    	///get data for comboboxes
+    	SQLContainer cmbContainer= connectToDB("root", "aksw","Endpoints");
+    	//fill endpoints
+		cmbSourceEndpoint.setContainerDataSource(cmbContainer);
+       	cmbDestinationEndpoint.setContainerDataSource(cmbContainer);  
+    	//select tasks endpoint to be default
+       	//getTaskEndpoint
+    	cmbSourceEndpoint.setValue(cmbSourceEndpoint.getItemIds().iterator().next());
+    	cmbDestinationEndpoint.setValue(cmbDestinationEndpoint.getItemIds().iterator().next());
+    	lytEndpoints.addComponent(cmbSourceEndpoint);
+    	lytEndpoints.addComponent(cmbDestinationEndpoint);
+    	lytEndpoints.setComponentAlignment(cmbSourceEndpoint, Alignment.MIDDLE_CENTER);
+    	lytEndpoints.setComponentAlignment(cmbDestinationEndpoint, Alignment.MIDDLE_CENTER);
+    	lytEndpoints.setSizeFull();
+
+
+    	
+    	pnlEndpoints.setContent(lytEndpoints);
+    	pnlEndpoints.setSizeFull(); 
     }
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     private HashMap<String, Object> collectComponents(Object...objects)
@@ -702,18 +750,7 @@ public class MyVaadinUI extends UI
     	return components;
     }
     
-    private Item getSelectedItem(Table table)
-    {
-    	Item selectedItem=null;
-    	try
-    	{
-    	//get the selected item from the big table (SourceDEstination)
-    	Object rowId =table.getValue();
-    	selectedItem = table.getItem(table.getValue());
-    	}
-    	catch(Exception e) {Notification.show("No selected Item");}
-    	return selectedItem;
-    }
+  
     
     private void setDecisionAndTime(String decision)
     {
@@ -741,20 +778,22 @@ public class MyVaadinUI extends UI
     {
     	//loading the properties of the URI's
     	
-        if(((CheckBox)(components.get("chkProperties"))).getValue())// Is the automatic button checked?
+        if(true)// Is the automatic button checked?
         {
         	//load the properties automatically
         	String sourceEndpoint="",destinationEndpoint="";
         	sourceEndpoint=((ComboBox)(components.get("cmbSourceEP"))).getItemCaption(((ComboBox)(components.get("cmbSourceEP"))).getValue());
         	destinationEndpoint=((ComboBox)(components.get("cmbDestinationEP"))).getItemCaption(((ComboBox)(components.get("cmbDestinationEP"))).getValue());
+        	String subject="";
         	try
     	  	{
-        		String sparqlQuery=source.getValue();		        
-	            getURIProperties(sparqlQuery,sourceEndpoint,((Table)(components.get("tblSourceProp"))));
-	            sparqlQuery=destination.getValue();		        
-	            getURIProperties(sparqlQuery,destinationEndpoint,((Table)(components.get("tblDestinationProp"))));
+        		subject=lblSource.getValue();	
+	            getURIProperties(subject,sourceEndpoint,((Table)(components.get("tblSourceProp"))));
+	            
+	            subject=lblDestination.getValue();		        
+	            getURIProperties(subject,destinationEndpoint,((Table)(components.get("tblDestinationProp"))));
     	  	}
-        	catch(Exception e){Notification.show("ERROR");}
+        	catch(Exception e){Notification.show("ERROR in loading "+subject+" URIs properties");}
         	lStartTime= System.currentTimeMillis();
         	//start time for next one
         }
@@ -768,18 +807,15 @@ public class MyVaadinUI extends UI
             Property sourceProperty=tblSourceDestination.getContainerProperty(rowId,"sourceURI");//get the source's URI
             Property destinationProperty=tblSourceDestination.getContainerProperty(rowId,"destinationURI");//get the target's URI
             //set the source and destination labels to selected URI's 
-            source.setValue(sourceProperty.toString());
-            destination.setValue(destinationProperty.toString());
+            lblSource.setValue(sourceProperty.toString());
+            lblDestination.setValue(destinationProperty.toString());
             //clear all URI's properties table
             tblSourcePropertiesParam.removeAllItems();
             tblDestinationPropertiesParam.removeAllItems();
-            Notification loadURI= new Notification("");
-            loadURI.show("Links' URIs are successfully loaded ");
     	}
     	catch(Exception e)
     	{
-    		Notification error= new Notification("Error");
-    		error.show("You did not select an item in the links table");
+    		Notification.show("You did not select an item in the links table");
     	}
     }
     private void setTaskEndpoints(List<String> endpointsIDs , HashMap<String, Object> endpointsComponents)
@@ -816,7 +852,7 @@ public class MyVaadinUI extends UI
     	{
     	//1- Assign decision and time
     		setDecisionAndTime(decision);
-    		Notification.show("Decision "+ decision+ " is made");
+    		//Notification.show("Decision "+ decision+ " is made");
     	//2- Advance and load new URIs
     		//get reference to the big table's container
     		SQLContainer s=(SQLContainer) tblSourceDestination.getContainerDataSource();
@@ -834,12 +870,11 @@ public class MyVaadinUI extends UI
     			loadURIsProperties(components);
     		}
     	}
-    	catch(Exception e){Notification.show(e.getMessage());}
+    	catch(Exception e){Notification.show("Unable to load the URI properties after the decision"+e.getMessage());}
     }
     private List<String> getRelatedProperties(String property)
     {
     	Connection con = null;
-		String url = "jdbc:mysql://localhost:3306/";
 		String selectQuery= "select property from Properties where " +
 				"(Id in (select firstProperty from propertyMappings " +
 						"where secondProperty = (select Id from Properties Where property =\""+property+"\")))" +
@@ -857,7 +892,7 @@ public class MyVaadinUI extends UI
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-			  con = DriverManager.getConnection("jdbc:mysql://localhost:3306/linkeval","root","mofo");
+			  con = DriverManager.getConnection("jdbc:mysql://localhost:3306/linkeval","root","aksw");
 			  Statement st = con.createStatement();
 			  linksRecords=st.executeQuery(selectQuery);
 			  while(linksRecords.next())
@@ -885,33 +920,94 @@ public class MyVaadinUI extends UI
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     private void getURIProperties(String subject,String endpoint, Table table)
     {
-    	
     	try
-    	{//"select * where { <"+subject+"> ?p  ?o .   FILTER(langMatches(lang(?o), \"EN\"))}"; idea about limiting results
+    	{
         	String sparqlQuery="select distinct * where { <"+subject+"> ?p  ?o .}";
-	        Query query = QueryFactory.create(sparqlQuery);
-			QueryExecution qexec = QueryExecutionFactory.sparqlService(endpoint, query);
-			com.hp.hpl.jena.query.ResultSet results = qexec.execSelect();
-			com.hp.hpl.jena.query.QuerySolution binding=null;
-			table.removeAllItems();
-		    while (results.hasNext()) 
-		    {
-		    	binding = results.next();
-		    	String property=binding.getResource("?p").toString();
-		    	String value;
-		    	if(binding.get("?o").isResource())
-		    		value=binding.getResource("?o").toString();
-		    	else
-		    		value=binding.getLiteral("?o").toString();
-		    	table.addItem(new Object[] {property,value}, new Integer(table.size()+1));
-		    }
-		    qexec.close() ;
+        	//if the model exists already and it contains the required subject's properties
+        	if((cachingModels.keySet().contains(Integer.parseInt(task))) && queryModel(sparqlQuery,table))
+        		;//Notification.show("model");
+        	else
+        	{// the model not exist or exist but subject's properties are not included in it
+        		queryEndpoints(sparqlQuery,endpoint,table);
+        		//Notification.show("endpoint");
+        	}
     	}
     	catch (Exception e)
 	 	  {
-		        Notification.show(e.toString());
+		        Notification.show("Error in querying "+subject+" properties from cache and endpoint \n"+e.getMessage());
 	 	  }
     }
+    private void queryEndpoints(String sparqlQuery,String endpoint,Table table)
+    {
+    	Query query = QueryFactory.create(sparqlQuery);
+		QueryExecution qexec = QueryExecutionFactory.sparqlService(endpoint, query);
+		com.hp.hpl.jena.query.ResultSet results = qexec.execSelect();
+		com.hp.hpl.jena.query.QuerySolution binding=null;
+		table.removeAllItems();
+	    while (results.hasNext()) 
+	    {
+	    	binding = results.next();
+	    	String property=binding.getResource("?p").toString();
+	    	String value;
+	    	if(binding.get("?o").isResource())
+	    		value=binding.getResource("?o").toString();
+	    	else
+	    		value=binding.getLiteral("?o").toString();
+	    	table.addItem(new Object[] {property,value}, new Integer(table.size()+1));
+	    	//String subject=binding.getResource("?s").toString();
+	    	////////////////////////addNewResourceToModel(subject,property,value);
+	    }
+	    qexec.close() ;
+    }
+    
+    /*private void addNewResourceToModel(String subject,String property,String value)
+    {
+    	Resource newResource = ResourceFactory.createResource(subject);
+    	com.hp.hpl.jena.rdf.model.Property newProperty= ResourceFactory.createProperty(property);
+    	if(task.equals("1") && model1 != null)
+    		model1.add(newResource, newProperty, value);
+    	else if(task.equals("2") && model2 != null)
+    		model2.add(newResource, newProperty, value);
+    	else if(task.equals("4") && model4 != null)
+    		model4.add(newResource, newProperty, value);
+    	
+    }*/
+    private boolean queryModel(String sparqlQuery,Table table)
+    {
+ 	  Query query = QueryFactory.create(sparqlQuery);
+ 	 QueryExecution exec=null;
+ 	  boolean hit=false;
+ 	 /*if(task.equals("1") && model1 != null)
+ 	 	  exec = QueryExecutionFactory.create(query, model1);
+ 	else if(task.equals("2") && model2 != null)
+ 	 	  exec = QueryExecutionFactory.create(query, model2);
+ 	else if(task.equals("4") && model4 != null)
+ 	 	  exec = QueryExecutionFactory.create(query, model4);*/
+ 	 
+ 	  exec = QueryExecutionFactory.create(query, cachingModels.get(Integer.parseInt(task)));
+ 	  com.hp.hpl.jena.query.ResultSet results = null;
+ 	  results= exec.execSelect();
+ 	  com.hp.hpl.jena.query.QuerySolution binding=null;
+ 	  table.removeAllItems();
+ 	  if(results==null)
+ 		  return false;
+ 	  
+ 	   while(results.hasNext())
+ 	   {
+ 		hit=true;
+ 		binding = results.next();
+	    String property=binding.getResource("?p").toString();
+	    String value;
+	    if(binding.get("?o").isResource())
+	    	value=binding.getResource("?o").toString();
+	    else
+	    	value=binding.getLiteral("?o").toString();
+	    table.addItem(new Object[] {property,value}, new Integer(table.size()+1));
+	    
+ 	   }
+ 	   return hit;
+    }
+
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     private HashMap<String,String> getEndpoints(String url,String db,String userName,String password)
     {
@@ -1042,12 +1138,7 @@ public class MyVaadinUI extends UI
 
 			  linksRecords.close();
 		  }
-		 /*
-		  catch (SQLException s)
-		  {
-			  
-			  Notification.show("SQLException:", "Error occured while Login:\n"+s.getMessage(), Type.TRAY_NOTIFICATION);
-		  } */catch (/*ClassNotFoundException*/Exception e) {
+		  catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
@@ -1076,18 +1167,13 @@ public class MyVaadinUI extends UI
 			  String selectStatement="SELECT userId,userName FROM Users";
 			  Statement st = con.createStatement();
 			  ResultSet linksRecords=st.executeQuery(selectStatement);
-			  
 			  while(linksRecords.next())
 			  {
 				  info.put(linksRecords.getString("userId"),linksRecords.getString("userName"));
 			  }
 			  linksRecords.close();
 		  }
-		 /*
-		  catch (SQLException s)
-		  {
-			  //System.out.println("SQL statement is not executed!\n"+s.getMessage());
-		  } */catch (/*ClassNotFoundException*/ Exception e) {
+		 catch ( Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
@@ -1103,47 +1189,7 @@ public class MyVaadinUI extends UI
 		return info;
 		
 	}
-    //////////////////////////////////////////////////////////////////////////////////////////////////
-    private List<LinkCandidate> getLinksCandidates(String url,String db,String userName,String password) throws SQLException
-	{
-		List<LinkCandidate> infoList= new ArrayList<LinkCandidate>();
-		Connection con = null;
-		String driver = "com.mysql.jdbc.Driver";
-		  try
-		  {
-			  Class.forName(driver);
-			  con = DriverManager.getConnection(url+db,userName,password);
-			  String selectStatement="SELECT * FROM Links";
-			  Statement st = con.createStatement();
-			  ResultSet linksRecords=st.executeQuery(selectStatement);
-			  
-			  while(linksRecords.next())
-			  {
-				  //infoList.add(new LinkCandidate(linksRecords.getString("sourceURI"),linksRecords.getString("destinationURI"), linksRecords.getString("relationMapping")));
-			  }
-			  linksRecords.close();
-		  }
-		 /*
-		  catch (SQLException s)
-		  {
-			  
-		  } */catch (/*ClassNotFoundException*/ Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		  finally
-		  {
-			  try {
-				con.close();
-			} catch (SQLException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-		  }
-		return infoList;
-		
-	}
-/////inner class
+    /////inner class
     public class LinkCandidate 
     {
     	public String source,destination,relation,decision,time;
