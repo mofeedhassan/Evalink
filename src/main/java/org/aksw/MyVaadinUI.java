@@ -33,6 +33,7 @@ import com.vaadin.data.util.sqlcontainer.query.TableQuery;
 import com.vaadin.event.FieldEvents.FocusListener;
 import com.vaadin.event.ItemClickEvent;
 import com.vaadin.event.FieldEvents.FocusEvent;
+import com.vaadin.server.ExternalResource;
 import com.vaadin.server.VaadinRequest;
 import com.vaadin.ui.AbsoluteLayout;
 import com.vaadin.ui.Button;
@@ -43,6 +44,7 @@ import com.vaadin.ui.ComboBox;
 import com.vaadin.ui.GridLayout;
 import com.vaadin.ui.HorizontalLayout;
 import com.vaadin.ui.Label;
+import com.vaadin.ui.Link;
 import com.vaadin.ui.ListSelect;
 import com.vaadin.ui.Notification;
 import com.vaadin.ui.Notification.Type;
@@ -59,7 +61,7 @@ public class MyVaadinUI extends UI
 {
 	
 	// Data structures declarations
-	static Model model1 = ModelFactory.createDefaultModel(),model2=null,model4=null;
+	//static Model model1 = ModelFactory.createDefaultModel(),model2=null,model4=null;
 	//A data structure to contain the models holding the cahed data for each task
 	static Map<Integer, Model> cachingModels = new HashMap<Integer, Model>();
 
@@ -92,7 +94,7 @@ public class MyVaadinUI extends UI
        	setContent(pnlDisplayedPanel); 
     }
     ///////////////////////////////////////////////////////////////////////////////////////////////////////
-    private Panel designLoginPanel()
+    protected Panel designLoginPanel()
     {
     	//for login data and collecting users data
     	HashMap<String, String> users=null;
@@ -105,8 +107,8 @@ public class MyVaadinUI extends UI
     	// Create components Objects and specify their properties
     	try 
     	{
-			users=getLoginInfo("jdbc:mysql://localhost:3306/","linkeval","root","aksw");
-			endpoints=getEndpoints("jdbc:mysql://localhost:3306/", "linkeval","root","aksw");
+			users=getLoginInfo("jdbc:mysql://localhost:3306/","linkeval","root","mofo");
+			endpoints=getEndpoints("jdbc:mysql://localhost:3306/", "linkeval","root","mofo");
 		} catch (SQLException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -115,6 +117,7 @@ public class MyVaadinUI extends UI
        	Button btnLogin = new Button("Login"); 
        	cmbUser = new ComboBox("Select your USER ID");
         cmbTask = new ComboBox("Select your TASK");
+        
         cmbUser.setNullSelectionAllowed(false);
         cmbTask.setNullSelectionAllowed(false);
         //Add data
@@ -178,7 +181,7 @@ public class MyVaadinUI extends UI
                 final String user = String.valueOf(event.getProperty().getValue());
                 
                 try {
-     				List<String>  tasks= getTasksInfo("jdbc:mysql://localhost:3306/","linkeval","root","aksw",user);
+     				List<String>  tasks= getTasksInfo("jdbc:mysql://localhost:3306/","linkeval","root","mofo",user);
      				//clear the tasks combobox from any previous selections
      				cmbTask.removeAllItems();
      				if(tasks != null)
@@ -207,12 +210,15 @@ public class MyVaadinUI extends UI
  ///////////////////////////////////////////////////////////////////////////////////////////   
    
     Label lblSource,lblDestination;
+    Link lnkSource=new Link();
+    Link lnkDestination = new Link();
+    
     Table tblSourceDestinationparam,tblSourcePropertiesParam,tblDestinationPropertiesParam; //pass tables between different panels
     long lStartTime =0;
 	long lEndTime=0; 
 	boolean newLink=true;
 	Table tblSourceDestination = new Table("Source and Destination URIs");
-    private Panel allLinksDetails()
+    protected Panel allLinksDetails()
     {
 
     	//create the panel that will hold all components
@@ -231,7 +237,7 @@ public class MyVaadinUI extends UI
      	tblSourceDestination.setSelectable(true);     	
      	tblSourceDestination.setSizeFull();    	
     	//fill the Source and Destination URIs table
-    	SQLContainer container=connectToDB("root", "aksw",userName);
+    	SQLContainer container=connectToDB("root", "mofo",userName);
     	Notification.show("Welcome "+userName+" you loaded task Nr.: "+task);
     	Compare.Equal suburbFilter = new Compare.Equal("taskId",Integer.valueOf(task));
     	container.addContainerFilter(suburbFilter);
@@ -261,8 +267,15 @@ public class MyVaadinUI extends UI
 	                Property sourceProperty=tblSourceDestination.getContainerProperty(rowId,"sourceURI");
 	                Property destinationProperty=tblSourceDestination.getContainerProperty(rowId,"destinationURI");
 	                
-	                lblSource.setValue(sourceProperty.toString());
-	                lblDestination.setValue(destinationProperty.toString());
+	              /*  lblSource.setValue(sourceProperty.toString());
+	                lblDestination.setValue(destinationProperty.toString());*/
+	                
+	                lnkSource.setResource(new ExternalResource(sourceProperty.toString()));
+	                lnkDestination.setResource(new ExternalResource(destinationProperty.toString()));
+	                
+	                lnkSource.setCaption(sourceProperty.toString());
+	            	lnkDestination.setCaption(destinationProperty.toString());
+
 	                tblSourcePropertiesParam.removeAllItems();
 	                tblDestinationPropertiesParam.removeAllItems();
 	                
@@ -290,11 +303,11 @@ public class MyVaadinUI extends UI
      	return linksDetails;
     }
     /////////////////////////////////////////////////////////////////////////////////////////////
-    private void cachingForTriples()
+    protected void cachingForTriples()
     {
     	//get caching files location from DB
     	String queryCach="SELECT taskId,caching FROM Tasks";
-    	SQLContainer cachedFile =connectToDB("root", "aksw","linkeval",queryCach);
+    	SQLContainer cachedFile =connectToDB("root", "mofo","linkeval",queryCach);
     	hashingCaching(cachedFile);
     	Model cachedModel=null;
     	int t = Integer.parseInt(task);
@@ -303,19 +316,19 @@ public class MyVaadinUI extends UI
 
     		try
     		{
-	    		cachedModel=org.aksw.Reader.readModel( cahinfFiles.get(Integer.parseInt(task)) );
-	    		cachingModels.put(Integer.parseInt(task), cachedModel);
+	    		cachedModel=org.aksw.Reader.readModel( cahinfFiles.get(t) );
+	    		cachingModels.put(t, cachedModel);
     		}
     		catch(Exception e)
     		{
-    			Notification.show("Caching File not exist");
+    			Notification.show("Caching File not exist");//not reached at all casuse of if
     		}
     	}
 
 
     	/*//get cahing files location from DB
     	String queryCach="SELECT taskId,caching FROM Tasks";
-    	SQLContainer cachedFile =connectToDB("root", "aksw","linkeval",queryCach);
+    	SQLContainer cachedFile =connectToDB("root", "mofo","TL2",queryCach);
     	hashingCaching(cachedFile);
     	if(task.equals("1") && model1 == null)
     		model1= org.aksw.Reader.readModel( cahinfFiles.get(Integer.parseInt(task)) );
@@ -326,13 +339,13 @@ public class MyVaadinUI extends UI
     }
     
     /////////////////////////////////////////////////////////////////////////////////////////////
-    private SQLContainer connectToDB (String userName, String passWord, String DB, String query)
+    protected SQLContainer connectToDB (String userName, String passWord, String DB, String query)
     {
     	SimpleJDBCConnectionPool connectionPool;  
     	SQLContainer container=null;
         try
         {
-        	connectionPool = new SimpleJDBCConnectionPool("com.mysql.jdbc.Driver", "jdbc:mysql://localhost:3306/"+DB,userName, passWord, 2,7);
+        	connectionPool = new SimpleJDBCConnectionPool("com.mysql.jdbc.Driver", "jdbc:mysql://localhost:3306/"+DB,userName, passWord, 1,7);
         	FreeformQuery ask = new FreeformQuery(query, connectionPool);
         	container = new SQLContainer(ask);
         }
@@ -343,7 +356,7 @@ public class MyVaadinUI extends UI
         return container;
     }
     
-    private void hashingCaching(SQLContainer cahingContainer)
+    protected void hashingCaching(SQLContainer cahingContainer)
     {
     	cahinfFiles= new HashMap<Integer, String>();
     	for (int i = 0; i < cahingContainer.size(); i++) 
@@ -359,13 +372,13 @@ public class MyVaadinUI extends UI
     	}
     	
     }
-    private SQLContainer connectToDB(String userName, String passWord, String table)
+    protected SQLContainer connectToDB(String userName, String passWord, String table)
     {
     	SimpleJDBCConnectionPool connectionPool;  
     	SQLContainer container=null;
         try
         {
-        	connectionPool = new SimpleJDBCConnectionPool("com.mysql.jdbc.Driver", "jdbc:mysql://localhost:3306/linkeval",userName, passWord, 2,7);
+        	connectionPool = new SimpleJDBCConnectionPool("com.mysql.jdbc.Driver", "jdbc:mysql://localhost:3306/linkeval",userName, passWord, 1,7);
         	TableQuery tq = new TableQuery(table, connectionPool);
         	container = new SQLContainer(tq);
         }
@@ -378,13 +391,13 @@ public class MyVaadinUI extends UI
     
        
     
-    private SQLContainer connectToDBFreeQuery(String userName, String passWord)
+    protected SQLContainer connectToDBFreeQuery(String userName, String passWord)
     {//has problems
     	SimpleJDBCConnectionPool connectionPool;  
     	SQLContainer container=null;
         try
         {
-        	connectionPool = new SimpleJDBCConnectionPool("com.mysql.jdbc.Driver", "jdbc:mysql://localhost:3306/linkeval",userName, passWord, 2,7);
+        	connectionPool = new SimpleJDBCConnectionPool("com.mysql.jdbc.Driver", "jdbc:mysql://localhost:3306/linkeval",userName, passWord, 1,7);
         	FreeformQuery query = new FreeformQuery("SELECT property " +
         											"FROM Properties AS P,PropertiesSuggestions AS S" +
         											" WHERE P.Id = S.propertyId AND S.taskId = "+task, connectionPool);
@@ -399,7 +412,7 @@ public class MyVaadinUI extends UI
  
     //////////////////////////////////////////////////////////////////////////////////////////
 
-    private Panel pnlMainPanelDesign()
+    protected Panel pnlMainPanelDesign()
     {
   
     	//create the panel that will hold all components
@@ -434,9 +447,10 @@ public class MyVaadinUI extends UI
     	
     	
 
-    	lblSource= new Label("Source URI");
-    	lblDestination= new Label("Destination URI");
+    	/*lblSource= new Label("Source URI");
+    	lblDestination= new Label("Destination URI");*/
     	
+    	  	
     	final Table tblSourcePropertiesMapping = new Table("Source Properties");
     	final Table tblDestinationPropertiesMapping = new Table("Destination Properties");
     	tblSourcePropertiesParam=tblSourcePropertiesMapping;
@@ -460,12 +474,12 @@ public class MyVaadinUI extends UI
     	lstSuggestedProperties.setSizeFull();
 
     	//set the tasks' endpoints to be selected
-    	List<String> endpointsIDs=getTaskEndpointsIDs("jdbc:mysql://localhost:3306/", "linkeval","root","aksw");
+    	List<String> endpointsIDs=getTaskEndpointsIDs("jdbc:mysql://localhost:3306/", "linkeval","root","mofo");
     	HashMap<String, Object> endpointsComponents = collectComponents("SourceEP",cmbSourceEndpoint,"DestinationEP",cmbDestinationEndpoint);
         setTaskEndpoints(endpointsIDs, endpointsComponents);
 		
 
-    	SQLContainer lstContainer =connectToDBFreeQuery("root", "aksw");
+    	SQLContainer lstContainer =connectToDBFreeQuery("root", "mofo");
     	int lstSize=lstContainer.size();
     	int i=0;
         for (Object cityItemId : lstContainer.getItemIds()) 
@@ -685,10 +699,19 @@ public class MyVaadinUI extends UI
     	
     	
     	lytDecision_Others.addComponent(lytButtons_List,1,0);
-    	lytDecision_Others.addComponent(lblSource,0,0);
+    	/*lytDecision_Others.addComponent(lblSource,0,0);
     	lytDecision_Others.addComponent(lblDestination,2,0);
     	lytDecision_Others.setComponentAlignment(lblSource, Alignment.TOP_LEFT);
-    	lytDecision_Others.setComponentAlignment(lblDestination, Alignment.TOP_RIGHT);
+    	lytDecision_Others.setComponentAlignment(lblDestination, Alignment.TOP_RIGHT);*/
+    	lnkSource.setTargetName("_blank");
+    	lnkDestination.setTargetName("_blank");
+
+    	lytDecision_Others.addComponent(lnkSource,0,0);
+    	lytDecision_Others.addComponent(lnkDestination,2,0);
+    	lytDecision_Others.setComponentAlignment(lnkSource, Alignment.TOP_LEFT);
+    	lytDecision_Others.setComponentAlignment(lnkDestination, Alignment.TOP_RIGHT);
+    	
+    	
     	lytDecision_Others.setSizeFull();
     	
     	layout.addComponent(lytProperties,0,0,0,1);
@@ -701,7 +724,7 @@ public class MyVaadinUI extends UI
     	return pnlURIsProperties;
     }
 	
-    private void pnlEndpointsPanelDesign()
+    protected void pnlEndpointsPanelDesign()
     {
     	VerticalLayout lytEndpoints = new VerticalLayout();
     	cmbSourceEndpoint= new ComboBox("Source Endpoint");
@@ -714,7 +737,7 @@ public class MyVaadinUI extends UI
     	cmbDestinationEndpoint.setNullSelectionAllowed(false);
  
     	///get data for comboboxes
-    	SQLContainer cmbContainer= connectToDB("root", "aksw","Endpoints");
+    	SQLContainer cmbContainer= connectToDB("root", "mofo","Endpoints");
     	//fill endpoints
 		cmbSourceEndpoint.setContainerDataSource(cmbContainer);
        	cmbDestinationEndpoint.setContainerDataSource(cmbContainer);  
@@ -734,7 +757,7 @@ public class MyVaadinUI extends UI
     	pnlEndpoints.setSizeFull(); 
     }
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    private HashMap<String, Object> collectComponents(Object...objects)
+    protected HashMap<String, Object> collectComponents(Object...objects)
     {
     	HashMap<String, Object> components=null;
     	if(objects.length > 0 && (objects.length % 2 == 0))// not odd value
@@ -752,7 +775,7 @@ public class MyVaadinUI extends UI
     
   
     
-    private void setDecisionAndTime(String decision)
+    protected void setDecisionAndTime(String decision)
     {
     	//get the selected item's Id from the big table (SourceDEstination)
 		Object rowId =tblSourceDestinationparam.getValue();
@@ -774,7 +797,7 @@ public class MyVaadinUI extends UI
 		}
     }
     
-    private void loadURIsProperties(HashMap<String, Object> components)
+    protected void loadURIsProperties(HashMap<String, Object> components)
     {
     	//loading the properties of the URI's
     	
@@ -787,10 +810,12 @@ public class MyVaadinUI extends UI
         	String subject="";
         	try
     	  	{
-        		subject=lblSource.getValue();	
+        		//subject=lblSource.getValue();
+        		subject=lnkSource.getCaption();
 	            getURIProperties(subject,sourceEndpoint,((Table)(components.get("tblSourceProp"))));
 	            
-	            subject=lblDestination.getValue();		        
+	            //subject=lblDestination.getValue();	
+	            subject=lnkDestination.getCaption();
 	            getURIProperties(subject,destinationEndpoint,((Table)(components.get("tblDestinationProp"))));
     	  	}
         	catch(Exception e){Notification.show("ERROR in loading "+subject+" URIs properties");}
@@ -798,7 +823,7 @@ public class MyVaadinUI extends UI
         	//start time for next one
         }
     }
-    private void loadURIs()
+    protected void loadURIs()
     {
     	try
     	{
@@ -807,8 +832,14 @@ public class MyVaadinUI extends UI
             Property sourceProperty=tblSourceDestination.getContainerProperty(rowId,"sourceURI");//get the source's URI
             Property destinationProperty=tblSourceDestination.getContainerProperty(rowId,"destinationURI");//get the target's URI
             //set the source and destination labels to selected URI's 
-            lblSource.setValue(sourceProperty.toString());
-            lblDestination.setValue(destinationProperty.toString());
+            /*lblSource.setValue(sourceProperty.toString());
+            lblDestination.setValue(destinationProperty.toString());*/
+            lnkSource.setResource(new ExternalResource(sourceProperty.toString()));
+            lnkDestination.setResource(new ExternalResource(destinationProperty.toString()));
+            
+            lnkSource.setCaption(sourceProperty.toString());
+        	lnkDestination.setCaption(destinationProperty.toString());
+        	
             //clear all URI's properties table
             tblSourcePropertiesParam.removeAllItems();
             tblDestinationPropertiesParam.removeAllItems();
@@ -818,7 +849,7 @@ public class MyVaadinUI extends UI
     		Notification.show("You did not select an item in the links table");
     	}
     }
-    private void setTaskEndpoints(List<String> endpointsIDs , HashMap<String, Object> endpointsComponents)
+    protected void setTaskEndpoints(List<String> endpointsIDs , HashMap<String, Object> endpointsComponents)
     {
     	//get values
     	String sourceEP=endpointsIDs.get(0);
@@ -846,7 +877,7 @@ public class MyVaadinUI extends UI
 			}
 		}
     }
-    private void decisionButtonAction(String decision, HashMap<String, Object> components)
+    protected void decisionButtonAction(String decision, HashMap<String, Object> components)
     {
     	try
     	{
@@ -872,7 +903,7 @@ public class MyVaadinUI extends UI
     	}
     	catch(Exception e){Notification.show("Unable to load the URI properties after the decision"+e.getMessage());}
     }
-    private List<String> getRelatedProperties(String property)
+    protected List<String> getRelatedProperties(String property)
     {
     	Connection con = null;
 		String selectQuery= "select property from Properties where " +
@@ -892,7 +923,7 @@ public class MyVaadinUI extends UI
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-			  con = DriverManager.getConnection("jdbc:mysql://localhost:3306/linkeval","root","aksw");
+			  con = DriverManager.getConnection("jdbc:mysql://localhost:3306/linkeval","root","mofo");
 			  Statement st = con.createStatement();
 			  linksRecords=st.executeQuery(selectQuery);
 			  while(linksRecords.next())
@@ -918,11 +949,20 @@ public class MyVaadinUI extends UI
 		  return relatedProperties;
     }
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    private void getURIProperties(String subject,String endpoint, Table table)
+    protected void getURIProperties(String subject,String endpoint, Table table)
     {
+    	boolean fileCachOk=false;
     	try
     	{
         	String sparqlQuery="select distinct * where { <"+subject+"> ?p  ?o .}";
+        /*	if(cachingModels.keySet().contains(Integer.parseInt(task)))
+        		fileCachOk = queryModel(sparqlQuery,table);
+        	if(fileCachOk == false)
+        		Notification.show("The file loading failed");
+        	else
+        		Notification.show("The file loading succeeded");*/
+
+        	
         	//if the model exists already and it contains the required subject's properties
         	if((cachingModels.keySet().contains(Integer.parseInt(task))) && queryModel(sparqlQuery,table))
         		;//Notification.show("model");
@@ -937,7 +977,7 @@ public class MyVaadinUI extends UI
 		        Notification.show("Error in querying "+subject+" properties from cache and endpoint \n"+e.getMessage());
 	 	  }
     }
-    private void queryEndpoints(String sparqlQuery,String endpoint,Table table)
+    protected void queryEndpoints(String sparqlQuery,String endpoint,Table table)
     {
     	Query query = QueryFactory.create(sparqlQuery);
 		QueryExecution qexec = QueryExecutionFactory.sparqlService(endpoint, query);
@@ -960,7 +1000,7 @@ public class MyVaadinUI extends UI
 	    qexec.close() ;
     }
     
-    /*private void addNewResourceToModel(String subject,String property,String value)
+    /*protected void addNewResourceToModel(String subject,String property,String value)
     {
     	Resource newResource = ResourceFactory.createResource(subject);
     	com.hp.hpl.jena.rdf.model.Property newProperty= ResourceFactory.createProperty(property);
@@ -972,18 +1012,12 @@ public class MyVaadinUI extends UI
     		model4.add(newResource, newProperty, value);
     	
     }*/
-    private boolean queryModel(String sparqlQuery,Table table)
+    protected boolean queryModel(String sparqlQuery,Table table)
     {
  	  Query query = QueryFactory.create(sparqlQuery);
- 	 QueryExecution exec=null;
+ 	  QueryExecution exec=null;
  	  boolean hit=false;
- 	 /*if(task.equals("1") && model1 != null)
- 	 	  exec = QueryExecutionFactory.create(query, model1);
- 	else if(task.equals("2") && model2 != null)
- 	 	  exec = QueryExecutionFactory.create(query, model2);
- 	else if(task.equals("4") && model4 != null)
- 	 	  exec = QueryExecutionFactory.create(query, model4);*/
- 	 
+  
  	  exec = QueryExecutionFactory.create(query, cachingModels.get(Integer.parseInt(task)));
  	  com.hp.hpl.jena.query.ResultSet results = null;
  	  results= exec.execSelect();
@@ -1009,7 +1043,7 @@ public class MyVaadinUI extends UI
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    private HashMap<String,String> getEndpoints(String url,String db,String userName,String password)
+    protected HashMap<String,String> getEndpoints(String url,String db,String userName,String password)
     {
     	HashMap<String,String> endpoints=null;
     	Connection con = null;
@@ -1059,7 +1093,7 @@ public class MyVaadinUI extends UI
     	return endpoints;
     }
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    private List<String> getTaskEndpointsIDs(String url,String db,String userName,String password)
+    protected List<String> getTaskEndpointsIDs(String url,String db,String userName,String password)
     {
     	List<String> endpoints=null;
     	Connection con = null;
@@ -1110,7 +1144,7 @@ public class MyVaadinUI extends UI
     	
     	return endpoints;
     }
-    private List<String> getTasksInfo(String url,String db,String userName,String password,String usr) throws SQLException
+    protected List<String> getTasksInfo(String url,String db,String userName,String password,String usr) throws SQLException
 	{
     	Connection con = null;
 		String driver = "com.mysql.jdbc.Driver";
@@ -1155,7 +1189,7 @@ public class MyVaadinUI extends UI
 		
 	}
     //////////////////////////////////////////////////////////////////////////////////
-    private HashMap<String, String> getLoginInfo(String url,String db,String userName,String password) throws SQLException
+    protected HashMap<String, String> getLoginInfo(String url,String db,String userName,String password) throws SQLException
 	{
     	Connection con = null;
 		String driver = "com.mysql.jdbc.Driver";
@@ -1209,6 +1243,5 @@ public class MyVaadinUI extends UI
     	}
     }
 }
-
 
 
